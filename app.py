@@ -1,4 +1,3 @@
-import shlex
 from urllib.parse import urljoin, urlparse
 import bs4
 import requests
@@ -43,22 +42,43 @@ def check_href_alignment(source_url: str, anchor_text: str, target_link: str) ->
     return "Fail - Double check manually"
 
 
-def parse_space_separated_line(line: str) -> list[str]:
-    """Parses space-separated input, preserving quotes for multi-word items."""
-    try:
-        return shlex.split(line)
-    except ValueError:
-        return line.split()
+def parse_line_by_urls(line: str):
+    """
+    Parses a line by identifying the starting target URL and trailing source URL,
+    treating everything in between as the anchor text.
+    """
+    tokens = line.strip().split()
+
+    if len(tokens) < 3:
+        return None, None, None, "Invalid Format (Requires target URL, anchor text, and source URL)"
+
+    target = tokens[0]
+    source = tokens[-1]
+    
+    # Check if both ends start with http:// or https://
+    if not (target.startswith("http://") or target.startswith("https://")):
+        return None, None, None, "Target URL must start with http:// or https://"
+
+    if not (source.startswith("http://") or source.startswith("https://")):
+        return None, None, None, "Source URL must start with http:// or https://"
+
+    # Everything between the first and last element is the anchor text
+    anchor = " ".join(tokens[1:-1])
+
+    if not anchor:
+        return None, None, None, "Missing Anchor Text"
+
+    return target, anchor, source, None
 
 
 # Streamlit UI Setup
 st.set_page_config(page_title="HREF Link Checker", layout="wide")
 st.title("🔗 HREF Link Alignment Checker")
 st.write(
-    "Enter line items separated by spaces: `Target_URL Anchor_Text Source_URL`"
+    "Enter line items separated by spaces: `Target_URL Anchor Text Source_URL`"
 )
 st.caption(
-    '💡 **Tip:** If your anchor text contains multiple words, wrap items in quotes: `"https://target.com" "Anchor Text" "https://source.com"`'
+    "💡 No quotes needed! The app automatically detects URLs at the start and end of each line and treats everything in between as the anchor text."
 )
 
 # Text area for multi-line input
@@ -67,7 +87,7 @@ raw_input = st.text_area(
     height=200,
     placeholder=(
         "https://www.python.org/downloads Downloads https://python.org\n"
-        'https://pypi.org "PyPI Packages" https://python.org'
+        "https://pypi.org Official PyPI Package Index https://python.org"
     ),
 )
 
@@ -81,11 +101,18 @@ if st.button("Check Links", type="primary"):
 
         with st.spinner("Checking links..."):
             for line in lines:
-                parts = parse_space_separated_line(line)
+                target, anchor, source, error = parse_line_by_urls(line)
 
-                # Expecting order: Target, Anchor, Source
-                if len(parts) >= 3:
-                    target, anchor, source = parts[0], parts[1], parts[2]
+                if error:
+                    results.append(
+                        {
+                            "Target Link": tokens[0] if 'tokens' in locals() and tokens else "-",
+                            "Anchor Text": "-",
+                            "Source Page": line,
+                            "Result": f"Error: {error}",
+                        }
+                    )
+                else:
                     status = check_href_alignment(source, anchor, target)
                     results.append(
                         {
@@ -93,15 +120,6 @@ if st.button("Check Links", type="primary"):
                             "Anchor Text": anchor,
                             "Source Page": source,
                             "Result": status,
-                        }
-                    )
-                else:
-                    results.append(
-                        {
-                            "Target Link": "-",
-                            "Anchor Text": "-",
-                            "Source Page": line,
-                            "Result": "Invalid Format (Needs 3 space-separated values)",
                         }
                     )
 
