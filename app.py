@@ -1,3 +1,4 @@
+import shlex
 from urllib.parse import urljoin, urlparse
 import bs4
 import requests
@@ -42,11 +43,24 @@ def check_href_alignment(source_url: str, anchor_text: str, target_link: str) ->
     return "Fail - Double check manually"
 
 
+def parse_space_separated_line(line: str) -> list[str]:
+    """Parses space-separated input, preserving quotes for multi-word anchor text."""
+    try:
+        # Handles quotes properly (e.g. "https://site.com" "Multi Word Anchor" "https://target.com")
+        return shlex.split(line)
+    except ValueError:
+        # Fallback to simple split if quotes are unclosed
+        return line.split()
+
+
 # Streamlit UI Setup
 st.set_page_config(page_title="HREF Link Checker", layout="wide")
 st.title("🔗 HREF Link Alignment Checker")
 st.write(
-    "Enter line items below, one per line using comma separation: `Source URL, Anchor Text, Target URL`"
+    "Enter line items separated by spaces: `Source_URL Anchor_Text Target_URL`"
+)
+st.caption(
+    '💡 **Tip:** If your anchor text contains multiple words, wrap items in quotes: `"https://site.com" "Anchor Text" "https://target.com"`'
 )
 
 # Text area for multi-line input
@@ -54,8 +68,8 @@ raw_input = st.text_area(
     "Batch Input",
     height=200,
     placeholder=(
-        "https://python.org, Downloads, https://www.python.org/downloads\n"
-        "https://python.org, Documentation, https://www.google.com"
+        "https://python.org Downloads https://www.python.org/downloads\n"
+        'https://python.org "PyPI Packages" https://pypi.org'
     ),
 )
 
@@ -69,7 +83,8 @@ if st.button("Check Links", type="primary"):
 
         with st.spinner("Checking links..."):
             for line in lines:
-                parts = [p.strip() for p in line.split(",")]
+                parts = parse_space_separated_line(line)
+
                 if len(parts) >= 3:
                     source, anchor, target = parts[0], parts[1], parts[2]
                     status = check_href_alignment(source, anchor, target)
@@ -87,7 +102,7 @@ if st.button("Check Links", type="primary"):
                             "Source Page": line,
                             "Anchor Text": "-",
                             "Target Link": "-",
-                            "Result": "Invalid Format",
+                            "Result": "Invalid Format (Needs 3 space-separated values)",
                         }
                     )
 
