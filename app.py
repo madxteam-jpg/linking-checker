@@ -44,12 +44,10 @@ def check_href_alignment(source_url: str, anchor_text: str, target_link: str) ->
 
 
 def parse_space_separated_line(line: str) -> list[str]:
-    """Parses space-separated input, preserving quotes for multi-word anchor text."""
+    """Parses space-separated input, preserving quotes for multi-word items."""
     try:
-        # Handles quotes properly (e.g. "https://site.com" "Multi Word Anchor" "https://target.com")
         return shlex.split(line)
     except ValueError:
-        # Fallback to simple split if quotes are unclosed
         return line.split()
 
 
@@ -57,10 +55,10 @@ def parse_space_separated_line(line: str) -> list[str]:
 st.set_page_config(page_title="HREF Link Checker", layout="wide")
 st.title("🔗 HREF Link Alignment Checker")
 st.write(
-    "Enter line items separated by spaces: `Source_URL Anchor_Text Target_URL`"
+    "Enter line items separated by spaces: `Target_URL Anchor_Text Source_URL`"
 )
 st.caption(
-    '💡 **Tip:** If your anchor text contains multiple words, wrap items in quotes: `"https://site.com" "Anchor Text" "https://target.com"`'
+    '💡 **Tip:** If your anchor text contains multiple words, wrap items in quotes: `"https://target.com" "Anchor Text" "https://source.com"`'
 )
 
 # Text area for multi-line input
@@ -68,8 +66,8 @@ raw_input = st.text_area(
     "Batch Input",
     height=200,
     placeholder=(
-        "https://python.org Downloads https://www.python.org/downloads\n"
-        'https://python.org "PyPI Packages" https://pypi.org'
+        "https://www.python.org/downloads Downloads https://python.org\n"
+        'https://pypi.org "PyPI Packages" https://python.org'
     ),
 )
 
@@ -85,23 +83,24 @@ if st.button("Check Links", type="primary"):
             for line in lines:
                 parts = parse_space_separated_line(line)
 
+                # Expecting order: Target, Anchor, Source
                 if len(parts) >= 3:
-                    source, anchor, target = parts[0], parts[1], parts[2]
+                    target, anchor, source = parts[0], parts[1], parts[2]
                     status = check_href_alignment(source, anchor, target)
                     results.append(
                         {
-                            "Source Page": source,
-                            "Anchor Text": anchor,
                             "Target Link": target,
+                            "Anchor Text": anchor,
+                            "Source Page": source,
                             "Result": status,
                         }
                     )
                 else:
                     results.append(
                         {
-                            "Source Page": line,
-                            "Anchor Text": "-",
                             "Target Link": "-",
+                            "Anchor Text": "-",
+                            "Source Page": line,
                             "Result": "Invalid Format (Needs 3 space-separated values)",
                         }
                     )
